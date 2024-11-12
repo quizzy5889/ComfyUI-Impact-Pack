@@ -2189,7 +2189,8 @@ try:
 
             if hasattr(latent_format, "taesd_decoder_path"):
                 taesd_decoder_path = folder_paths.get_full_path("vae_approx", latent_format.taesd_decoder_name)
-                print (f"-----------------------------{taesd_decoder_path}")
+
+            print (f"-----------------------------{taesd_decoder_path}")
 
             if method == LatentPreviewMethod.Auto:
                 method = LatentPreviewMethod.Latent2RGB

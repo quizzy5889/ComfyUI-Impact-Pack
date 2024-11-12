@@ -2135,7 +2135,7 @@ class LatentSender(nodes.SaveLatent):
         output = {"latent_tensor": samples["samples"]}
 
         tensor_bytes = safetensors.torch.save(output)
-        #print(f"[LatentSender] - Saving latent to {fullpath}")
+        print(f"[LatentSender] - Saving latent to {fullpath}")
         LatentSender.save_to_file(tensor_bytes, prompt, extra_pnginfo, preview, fullpath)
 
         latent_path = {

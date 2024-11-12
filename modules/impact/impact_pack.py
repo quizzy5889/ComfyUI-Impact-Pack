@@ -2316,8 +2316,8 @@ class LatentSenderFlux(nodes.SaveLatent):
         w = 128
         h = 128
 
-        image = torch.zeros((h, w), dtype=torch.float32)
-        return LatentSender.attach_format_text(image)
+        image = Image.new("RGB", (w, h), (0, 0, 0))
+        return LatentSenderFlux.attach_format_text(image)
 
     def doit(self, samples, filename_prefix="latents/LatentSender", link_id=0, preview_method="Latent2RGB-SDXL", prompt=None, extra_pnginfo=None):
         full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir)

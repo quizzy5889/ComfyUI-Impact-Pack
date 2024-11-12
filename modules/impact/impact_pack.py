@@ -2348,6 +2348,7 @@ class LatentSenderFlux(nodes.SaveLatent):
         # support save metadata for latent sharing
         file = f"{filename}_{counter:05}_.latent.png"
         fullpath = os.path.join(full_output_folder, file)
+        print(f"-----------{fullpath}")
 
         output = {"latent_tensor": samples["samples"]}
 

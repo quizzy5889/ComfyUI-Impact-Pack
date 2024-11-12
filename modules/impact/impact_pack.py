@@ -1927,7 +1927,7 @@ class LatentReceiver:
         input_dir = folder_paths.get_input_directory()
         files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f)) and check_file_extension(f)]
 
-        print(f"[LatentReceiver] - Searched files in {input_dir} are {files}")
+        #print(f"[LatentReceiver] - Searched files in {input_dir} are {files}")
         return {"required": {
                     "latent": (sorted(files), ),
                     "link_id": ("INT", {"default": 0, "min": 0, "max": sys.maxsize, "step": 1}),
@@ -2135,7 +2135,7 @@ class LatentSender(nodes.SaveLatent):
         output = {"latent_tensor": samples["samples"]}
 
         tensor_bytes = safetensors.torch.save(output)
-        print(f"[LatentSender] - Saving latent to {fullpath}")
+        #print(f"[LatentSender] - Saving latent to {fullpath}")
         LatentSender.save_to_file(tensor_bytes, prompt, extra_pnginfo, preview, fullpath)
 
         latent_path = {

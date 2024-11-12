@@ -2278,44 +2278,45 @@ class LatentSenderFlux(nodes.SaveLatent):
         from comfy.cli_args import LatentPreviewMethod
         import comfy.latent_formats as latent_formats
 
-        lower_bound = 128
-        upper_bound = 256
+        # lower_bound = 128
+        # upper_bound = 256
 
-        latent_format = latent_formats.Flux()
-        method = LatentPreviewMethod.TAESD
-
-        #if preview_method == "Latent2RGB-SD15":
+        # if preview_method == "Latent2RGB-SD15":
         #    latent_format = latent_formats.SD15()
         #    method = LatentPreviewMethod.Latent2RGB
-        #elif preview_method == "TAESD15":
+        # elif preview_method == "TAESD15":
         #    latent_format = latent_formats.SD15()
         #    method = LatentPreviewMethod.TAESD
-        #elif preview_method == "TAESDXL":
+        # elif preview_method == "TAESDXL":
         #    latent_format = latent_formats.SDXL()
         #    method = LatentPreviewMethod.TAESD
-        #else:  # preview_method == "Latent2RGB-SDXL"
+        # else:  # preview_method == "Latent2RGB-SDXL"
         #    latent_format = latent_formats.SDXL()
         #    method = LatentPreviewMethod.Latent2RGB
 
-        previewer = core.get_previewer("cpu", latent_format=latent_format, force=True, method=method)
+        # previewer = core.get_previewer("cpu", latent_format=latent_format, force=True, method=method)
 
-        image = previewer.decode_latent_to_preview(latent_tensor)
-        min_size = min(image.size[0], image.size[1])
-        max_size = max(image.size[0], image.size[1])
+        # image = previewer.decode_latent_to_preview(latent_tensor)
+        # min_size = min(image.size[0], image.size[1])
+        # max_size = max(image.size[0], image.size[1])
 
-        scale_factor = 1
-        if max_size > upper_bound:
-            scale_factor = upper_bound/max_size
+        # scale_factor = 1
+        # if max_size > upper_bound:
+        #     scale_factor = upper_bound/max_size
 
         # prevent too small preview
-        if min_size*scale_factor < lower_bound:
-            scale_factor = lower_bound/min_size
+        # if min_size*scale_factor < lower_bound:
+        #     scale_factor = lower_bound/min_size
 
-        w = int(image.size[0] * scale_factor)
-        h = int(image.size[1] * scale_factor)
+        # w = int(image.size[0] * scale_factor)
+        #h = int(image.size[1] * scale_factor)
 
-        image = image.resize((w, h), resample=Image.NEAREST)
+        #image = image.resize((w, h), resample=Image.NEAREST)
 
+        w = 128
+        h = 128
+
+        image = torch.zeros((3, h, w), dtype=torch.float32)
         return LatentSender.attach_format_text(image)
 
     def doit(self, samples, filename_prefix="latents/LatentSender", link_id=0, preview_method="Latent2RGB-SDXL", prompt=None, extra_pnginfo=None):

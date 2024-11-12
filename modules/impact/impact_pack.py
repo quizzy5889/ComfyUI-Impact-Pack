@@ -1914,241 +1914,6 @@ class ImageSender(nodes.PreviewImage):
         return result
 
 
-class LatentReceiver:
-    def __init__(self):
-        self.input_dir = folder_paths.get_input_directory()
-        self.type = "input"
-
-    @classmethod
-    def INPUT_TYPES(s):
-        def check_file_extension(x):
-            return x.endswith(".latent") or x.endswith(".latent.png")
-
-        input_dir = folder_paths.get_input_directory()
-        files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f)) and check_file_extension(f)]
-
-        print(f"[LatentReceiver] - Searched files in {input_dir} are {files}")
-        return {"required": {
-                    "latent": (sorted(files), ),
-                    "link_id": ("INT", {"default": 0, "min": 0, "max": sys.maxsize, "step": 1}),
-                    "trigger_always": ("BOOLEAN", {"default": False, "label_on": "enable", "label_off": "disable"}),
-                    },
-                }
-
-    FUNCTION = "doit"
-
-    CATEGORY = "ImpactPack/Util"
-
-    RETURN_TYPES = ("LATENT",)
-
-    @staticmethod
-    def load_preview_latent(image_path):
-        if not os.path.exists(image_path):
-            return None
-
-        image = Image.open(image_path)
-        exif_data = piexif.load(image.info["exif"])
-
-        if piexif.ExifIFD.UserComment in exif_data["Exif"]:
-            compressed_data = exif_data["Exif"][piexif.ExifIFD.UserComment]
-            compressed_data_io = BytesIO(compressed_data)
-            with zipfile.ZipFile(compressed_data_io, mode='r') as archive:
-                tensor_bytes = archive.read("latent")
-            tensor = safetensors.torch.load(tensor_bytes)
-            return {"samples": tensor['latent_tensor']}
-        return None
-
-    def parse_filename(self, filename):
-        pattern = r"^(.*)/(.*?)\[(.*)\]\s*$"
-        match = re.match(pattern, filename)
-        if match:
-            subfolder = match.group(1)
-            filename = match.group(2).rstrip()
-            file_type = match.group(3)
-        else:
-            subfolder = ''
-            file_type = self.type
-
-        return {'filename': filename, 'subfolder': subfolder, 'type': file_type}
-
-    def doit(self, **kwargs):
-        if 'latent' not in kwargs:
-            return (torch.zeros([1, 4, 8, 8]), )
-
-        latent = kwargs['latent']
-
-        latent_name = latent
-        latent_path = folder_paths.get_annotated_filepath(latent_name)
-
-        if latent.endswith(".latent"):
-            latent = safetensors.torch.load_file(latent_path, device="cpu")
-            multiplier = 1.0
-            if "latent_format_version_0" not in latent:
-                multiplier = 1.0 / 0.18215
-            samples = {"samples": latent["latent_tensor"].float() * multiplier}
-        else:
-            samples = LatentReceiver.load_preview_latent(latent_path)
-
-        if samples is None:
-            samples = {'samples': torch.zeros([1, 4, 8, 8])}
-
-        preview = self.parse_filename(latent_name)
-
-        return {
-                'ui': {"images": [preview]},
-                'result': (samples, )
-                }
-
-    @classmethod
-    def IS_CHANGED(s, latent, link_id, trigger_always):
-        if trigger_always:
-            return float("NaN")
-        else:
-            image_path = folder_paths.get_annotated_filepath(latent)
-            m = hashlib.sha256()
-            with open(image_path, 'rb') as f:
-                m.update(f.read())
-            return m.digest().hex()
-
-    @classmethod
-    def VALIDATE_INPUTS(s, latent, link_id, trigger_always):
-        if not folder_paths.exists_annotated_filepath(latent) or latent.startswith("/") or ".." in latent:
-            return "Invalid latent file: {}".format(latent)
-        return True
-
-
-class LatentSender(nodes.SaveLatent):
-    def __init__(self):
-        super().__init__()
-        self.output_dir = folder_paths.get_temp_directory()
-        self.type = "temp"
-
-    @classmethod
-    def INPUT_TYPES(s):
-        return {"required": {
-                             "samples": ("LATENT", ),
-                             "filename_prefix": ("STRING", {"default": "latents/LatentSender"}),
-                             "link_id": ("INT", {"default": 0, "min": 0, "max": sys.maxsize, "step": 1}),
-                             "preview_method": (["Latent2RGB-SDXL", "Latent2RGB-SD15", "TAESDXL", "TAESD15"],)
-                             },
-                "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
-                }
-
-    OUTPUT_NODE = True
-
-    RETURN_TYPES = ()
-
-    FUNCTION = "doit"
-
-    CATEGORY = "ImpactPack/Util"
-
-    @staticmethod
-    def save_to_file(tensor_bytes, prompt, extra_pnginfo, image, image_path):
-        compressed_data = BytesIO()
-        with zipfile.ZipFile(compressed_data, mode='w') as archive:
-            archive.writestr("latent", tensor_bytes)
-        image = image.copy()
-        exif_data = {"Exif": {piexif.ExifIFD.UserComment: compressed_data.getvalue()}}
-
-        metadata = PngInfo()
-        if prompt is not None:
-            metadata.add_text("prompt", json.dumps(prompt))
-        if extra_pnginfo is not None:
-            for x in extra_pnginfo:
-                metadata.add_text(x, json.dumps(extra_pnginfo[x]))
-
-        exif_bytes = piexif.dump(exif_data)
-        image.save(image_path, format='png', exif=exif_bytes, pnginfo=metadata, optimize=True)
-
-    @staticmethod
-    def prepare_preview(latent_tensor, preview_method):
-        from comfy.cli_args import LatentPreviewMethod
-        import comfy.latent_formats as latent_formats
-
-        lower_bound = 128
-        upper_bound = 256
-
-        if preview_method == "Latent2RGB-SD15":
-            latent_format = latent_formats.SD15()
-            method = LatentPreviewMethod.Latent2RGB
-        elif preview_method == "TAESD15":
-            latent_format = latent_formats.SD15()
-            method = LatentPreviewMethod.TAESD
-        elif preview_method == "TAESDXL":
-            latent_format = latent_formats.SDXL()
-            method = LatentPreviewMethod.TAESD
-        else:  # preview_method == "Latent2RGB-SDXL"
-            latent_format = latent_formats.SDXL()
-            method = LatentPreviewMethod.Latent2RGB
-
-        previewer = core.get_previewer("cpu", latent_format=latent_format, force=True, method=method)
-
-        image = previewer.decode_latent_to_preview(latent_tensor)
-        min_size = min(image.size[0], image.size[1])
-        max_size = max(image.size[0], image.size[1])
-
-        scale_factor = 1
-        if max_size > upper_bound:
-            scale_factor = upper_bound/max_size
-
-        # prevent too small preview
-        if min_size*scale_factor < lower_bound:
-            scale_factor = lower_bound/min_size
-
-        w = int(image.size[0] * scale_factor)
-        h = int(image.size[1] * scale_factor)
-
-        image = image.resize((w, h), resample=Image.NEAREST)
-
-        return LatentSender.attach_format_text(image)
-
-    @staticmethod
-    def attach_format_text(image):
-        width_a, height_a = image.size
-
-        letter_image = Image.open(latent_letter_path)
-        width_b, height_b = letter_image.size
-
-        new_width = max(width_a, width_b)
-        new_height = height_a + height_b
-
-        new_image = Image.new('RGB', (new_width, new_height), (0, 0, 0))
-
-        offset_x = (new_width - width_b) // 2
-        offset_y = (height_a + (new_height - height_a - height_b) // 2)
-        new_image.paste(letter_image, (offset_x, offset_y))
-
-        new_image.paste(image, (0, 0))
-
-        return new_image
-
-    def doit(self, samples, filename_prefix="latents/LatentSender", link_id=0, preview_method="Latent2RGB-SDXL", prompt=None, extra_pnginfo=None):
-        full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir)
-
-        # load preview
-        preview = LatentSender.prepare_preview(samples['samples'], preview_method)
-
-        # support save metadata for latent sharing
-        file = f"{filename}_{counter:05}_.latent.png"
-        fullpath = os.path.join(full_output_folder, file)
-
-        output = {"latent_tensor": samples["samples"]}
-
-        tensor_bytes = safetensors.torch.save(output)
-        print(f"[LatentSender] - Saving latent to {fullpath}")
-        LatentSender.save_to_file(tensor_bytes, prompt, extra_pnginfo, preview, fullpath)
-
-        latent_path = {
-                    'filename': file,
-                    'subfolder': subfolder,
-                    'type': self.type
-                    }
-
-        PromptServer.instance.send_sync("latent-send", {"link_id": link_id, "images": [latent_path]})
-
-        return {'ui': {'images': [latent_path]}}
-
-
 class ImpactWildcardProcessor:
     @classmethod
     def INPUT_TYPES(s):
@@ -2233,7 +1998,7 @@ class ImpactSchedulerAdapter:
         return (scheduler,)
 
 
-class LatentSenderFlux(nodes.SaveLatent):
+class LatentSender(nodes.SaveLatent):
     def __init__(self):
         super().__init__()
         self.output_dir = folder_paths.get_temp_directory()
@@ -2320,7 +2085,7 @@ class LatentSenderFlux(nodes.SaveLatent):
         h = 128
 
         image = Image.new("RGB", (w, h), (0, 0, 0))
-        return LatentSenderFlux.attach_format_text(image)
+        return LatentSender.attach_format_text(image)
 
     @staticmethod
     def attach_format_text(image):
@@ -2346,7 +2111,7 @@ class LatentSenderFlux(nodes.SaveLatent):
         full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir)
 
         # load preview
-        preview = LatentSenderFlux.prepare_preview(samples['samples'], preview_method)
+        preview = LatentSender.prepare_preview(samples['samples'], preview_method)
 
         # support save metadata for latent sharing
         file = f"{filename}_{counter:05}_.latent.png"
@@ -2357,7 +2122,7 @@ class LatentSenderFlux(nodes.SaveLatent):
         tensor_bytes = safetensors.torch.save(output)
 
         print(f"[LatentSenderFlux] - Saving latent to {fullpath}")
-        LatentSenderFlux.save_to_file(tensor_bytes, prompt, extra_pnginfo, preview, fullpath)
+        LatentSender.save_to_file(tensor_bytes, prompt, extra_pnginfo, preview, fullpath)
 
         latent_path = {
                     'filename': file,
@@ -2370,7 +2135,7 @@ class LatentSenderFlux(nodes.SaveLatent):
         return {'ui': {'images': [latent_path]}}
 
 
-class LatentReceiverFlux:
+class LatentReceiver:
     def __init__(self):
         self.input_dir = folder_paths.get_input_directory()
         self.type = "input"
@@ -2384,7 +2149,7 @@ class LatentReceiverFlux:
         files = [f for f in os.listdir(input_dir) if
                  os.path.isfile(os.path.join(input_dir, f)) and check_file_extension(f)]
 
-        print(f"[LatentReceiverFlux] - Searched files in {input_dir} are {files}")
+        print(f"[LatentReceiver] - Searched files in {input_dir} are {files}")
 
         return {"required": {
             "latent": (sorted(files),),
@@ -2445,7 +2210,7 @@ class LatentReceiverFlux:
                 multiplier = 1.0 / 0.18215
             samples = {"samples": latent["latent_tensor"].float() * multiplier}
         else:
-            samples = LatentReceiverFlux.load_preview_latent(latent_path)
+            samples = LatentReceiver.load_preview_latent(latent_path)
 
         if samples is None:
             samples = {'samples': torch.zeros([1, 4, 8, 8])}

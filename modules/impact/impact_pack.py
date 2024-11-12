@@ -2114,7 +2114,7 @@ class LatentSender(nodes.SaveLatent):
         preview = LatentSender.prepare_preview(samples['samples'], preview_method)
 
         # support save metadata for latent sharing
-        file = f"{filename}_{counter:05}_.latent.png"
+        file = f"{filename}_{1:05}_.latent.png"
         fullpath = os.path.join(full_output_folder, file)
 
         output = {"latent_tensor": samples["samples"]}

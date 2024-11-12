@@ -2282,7 +2282,7 @@ class LatentSenderFlux(nodes.SaveLatent):
         upper_bound = 256
 
         latent_format = latent_formats.Flux()
-        method = LatentPreviewMethod.Latent2RGB
+        method = LatentPreviewMethod.TAESD
 
         #if preview_method == "Latent2RGB-SD15":
         #    latent_format = latent_formats.SD15()

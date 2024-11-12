@@ -2377,7 +2377,8 @@ class LatentReceiverFlux:
         def check_file_extension(x):
             return x.endswith(".latent") or x.endswith(".latent.png")
 
-        input_dir = folder_paths.get_input_directory()
+        #input_dir = folder_paths.get_input_directory()
+        input_dir = "/app/temp/latents"
         files = [f for f in os.listdir(input_dir) if
                  os.path.isfile(os.path.join(input_dir, f)) and check_file_extension(f)]
 

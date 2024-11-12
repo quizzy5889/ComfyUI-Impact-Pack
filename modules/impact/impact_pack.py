@@ -2319,6 +2319,26 @@ class LatentSenderFlux(nodes.SaveLatent):
         image = Image.new("RGB", (w, h), (0, 0, 0))
         return LatentSenderFlux.attach_format_text(image)
 
+    @staticmethod
+    def attach_format_text(image):
+        width_a, height_a = image.size
+
+        letter_image = Image.open(latent_letter_path)
+        width_b, height_b = letter_image.size
+
+        new_width = max(width_a, width_b)
+        new_height = height_a + height_b
+
+        new_image = Image.new('RGB', (new_width, new_height), (0, 0, 0))
+
+        offset_x = (new_width - width_b) // 2
+        offset_y = (height_a + (new_height - height_a - height_b) // 2)
+        new_image.paste(letter_image, (offset_x, offset_y))
+
+        new_image.paste(image, (0, 0))
+
+        return new_image
+
     def doit(self, samples, filename_prefix="latents/LatentSender", link_id=0, preview_method="Latent2RGB-SDXL", prompt=None, extra_pnginfo=None):
         full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir)
 

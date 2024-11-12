@@ -2356,7 +2356,7 @@ class LatentSenderFlux(nodes.SaveLatent):
 
         tensor_bytes = safetensors.torch.save(output)
 
-        #print(f"[LatentSenderFlux] - Saving latent to {fullpath}")
+        print(f"[LatentSenderFlux] - Saving latent to {fullpath}")
         LatentSenderFlux.save_to_file(tensor_bytes, prompt, extra_pnginfo, preview, fullpath)
 
         latent_path = {
@@ -2384,7 +2384,7 @@ class LatentReceiverFlux:
         files = [f for f in os.listdir(input_dir) if
                  os.path.isfile(os.path.join(input_dir, f)) and check_file_extension(f)]
 
-        #print(f"[LatentReceiverFlux] - Searched files in {input_dir} are {files}")
+        print(f"[LatentReceiverFlux] - Searched files in {input_dir} are {files}")
 
         return {"required": {
             "latent": (sorted(files),),

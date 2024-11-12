@@ -2348,11 +2348,12 @@ class LatentSenderFlux(nodes.SaveLatent):
         # support save metadata for latent sharing
         file = f"{filename}_{counter:05}_.latent.png"
         fullpath = os.path.join(full_output_folder, file)
-        print(f"-----------{fullpath}")
 
         output = {"latent_tensor": samples["samples"]}
 
         tensor_bytes = safetensors.torch.save(output)
+
+        print(f"Saving latent to {fullpath}")
         LatentSenderFlux.save_to_file(tensor_bytes, prompt, extra_pnginfo, preview, fullpath)
 
         latent_path = {
@@ -2438,7 +2439,7 @@ class LatentReceiverFlux:
                 multiplier = 1.0 / 0.18215
             samples = {"samples": latent["latent_tensor"].float() * multiplier}
         else:
-            samples = LatentReceiver.load_preview_latent(latent_path)
+            samples = LatentReceiverFlux.load_preview_latent(latent_path)
 
         if samples is None:
             samples = {'samples': torch.zeros([1, 4, 8, 8])}

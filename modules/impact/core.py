@@ -2187,7 +2187,7 @@ try:
             # TODO previewer methods
             taesd_decoder_path = None
 
-            if hasattr(latent_format, "taesd_decoder_path"):
+            if hasattr(latent_format, "taesd_decoder_name"):
                 taesd_decoder_path = folder_paths.get_full_path("vae_approx", latent_format.taesd_decoder_name)
 
             print (f"-----------------------------{taesd_decoder_path}")

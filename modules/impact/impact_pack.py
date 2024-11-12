@@ -2281,18 +2281,21 @@ class LatentSenderFlux(nodes.SaveLatent):
         lower_bound = 128
         upper_bound = 256
 
-        if preview_method == "Latent2RGB-SD15":
-            latent_format = latent_formats.SD15()
-            method = LatentPreviewMethod.Latent2RGB
-        elif preview_method == "TAESD15":
-            latent_format = latent_formats.SD15()
-            method = LatentPreviewMethod.TAESD
-        elif preview_method == "TAESDXL":
-            latent_format = latent_formats.SDXL()
-            method = LatentPreviewMethod.TAESD
-        else:  # preview_method == "Latent2RGB-SDXL"
-            latent_format = latent_formats.SDXL()
-            method = LatentPreviewMethod.Latent2RGB
+        latent_format = latent_formats.Flux()
+        method = LatentPreviewMethod.Latent2RGB
+
+        #if preview_method == "Latent2RGB-SD15":
+        #    latent_format = latent_formats.SD15()
+        #    method = LatentPreviewMethod.Latent2RGB
+        #elif preview_method == "TAESD15":
+        #    latent_format = latent_formats.SD15()
+        #    method = LatentPreviewMethod.TAESD
+        #elif preview_method == "TAESDXL":
+        #    latent_format = latent_formats.SDXL()
+        #    method = LatentPreviewMethod.TAESD
+        #else:  # preview_method == "Latent2RGB-SDXL"
+        #    latent_format = latent_formats.SDXL()
+        #    method = LatentPreviewMethod.Latent2RGB
 
         previewer = core.get_previewer("cpu", latent_format=latent_format, force=True, method=method)
 
@@ -2314,6 +2317,31 @@ class LatentSenderFlux(nodes.SaveLatent):
         image = image.resize((w, h), resample=Image.NEAREST)
 
         return LatentSender.attach_format_text(image)
+
+    def doit(self, samples, filename_prefix="latents/LatentSender", link_id=0, preview_method="Latent2RGB-SDXL", prompt=None, extra_pnginfo=None):
+        full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir)
+
+        # load preview
+        preview = LatentSenderFlux.prepare_preview(samples['samples'], preview_method)
+
+        # support save metadata for latent sharing
+        file = f"{filename}_{counter:05}_.latent.png"
+        fullpath = os.path.join(full_output_folder, file)
+
+        output = {"latent_tensor": samples["samples"]}
+
+        tensor_bytes = safetensors.torch.save(output)
+        LatentSenderFlux.save_to_file(tensor_bytes, prompt, extra_pnginfo, preview, fullpath)
+
+        latent_path = {
+                    'filename': file,
+                    'subfolder': subfolder,
+                    'type': self.type
+                    }
+
+        PromptServer.instance.send_sync("latent-send", {"link_id": link_id, "images": [latent_path]})
+
+        return {'ui': {'images': [latent_path]}}
 
 
 class LatentReceiverFlux:

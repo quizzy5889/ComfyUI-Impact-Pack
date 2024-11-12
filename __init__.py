@@ -202,6 +202,8 @@ NODE_CLASS_MAPPINGS = {
     "ImageReceiver": ImageReceiver,
     "LatentSender": LatentSender,
     "LatentReceiver": LatentReceiver,
+    "LatentSenderFlux": LatentSenderFlux,
+    "LatentReceiverFlux": LatentReceiverFlux,
     "ImageMaskSwitch": ImageMaskSwitch,
     "LatentSwitch": GeneralSwitch,
     "SEGSSwitch": GeneralSwitch,
